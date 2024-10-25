@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
@@ -323,8 +324,6 @@ public class Rs2Widget {
         Microbot.doInvoke(new NewMenuEntry(param0 != -1 ? param0 : widget.getType(), param1, menuAction.getId(), identifier, widget.getItemId(), target), widget.getBounds());
     }
 
-
-
     public static void clickWidgetFast(Widget widget, int param0) {
         clickWidgetFast(widget, param0, 1);
     }
@@ -356,5 +355,41 @@ public class Rs2Widget {
     // check if deposit box widget is open
     public static boolean isDepositBoxWidgetOpen() {
         return isWidgetVisible(ComponentID.DEPOSIT_BOX_INVENTORY_ITEM_CONTAINER);
+    }
+
+    public static Widget getMatchingWidget(Predicate<Widget> predicate) {
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            List<Widget> rootWidgets = Arrays.stream(Microbot.getClient().getWidgetRoots())
+                    .filter(x -> x != null && !x.isHidden())
+                    .collect(Collectors.toList());
+
+            for (Widget rootWidget : rootWidgets) {
+                Widget widget = searchChildren(rootWidget, predicate);
+                if (widget != null) {
+                    return widget;
+                }
+            }
+            return null;
+        });
+    }
+
+    private static Widget searchChildren(Widget widget, Predicate<Widget> predicate) {
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            if (widget.getChildren() == null) {
+                return null;
+            }
+            for (Widget child : widget.getChildren()) {
+                if (predicate.test(child)) {
+                    return child;
+                }
+                if (child.getChildren() != null) {
+                    Widget found = searchChildren(child, predicate);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+            }
+            return null;
+        });
     }
 }
